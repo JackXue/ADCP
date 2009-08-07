@@ -8,28 +8,30 @@ from heapq import heapify, heappush, heappop
 import os
 from Classes import EnsembleCollection, Stack, Ensemble, Bin
 
-def importTransectFile(file):
-    "Take a transect file and build a transect list filled with ensembles of bins"
+def importTraverseFile(file):
+    "Take a single traverse file and build a list filled with ensembles of bins"
 
-    lines = [i[:-1] for i in open(file,'r').readlines()]
+    # Safely open and read the file
+    with open(file, 'r') as f: lines = [i[:-1] for i in f.readlines()]
     # Functional programming FTW! Take the file path, pull off the file name
     # throw away the extension, then throw away the "t" that comes at the end
-    # of all ADCP files, then just take the last 3 values. Result, the transect number.
+    # of all ADCP files, then just take the last 3 values. Result, the traverse number.
     value = int(path.split(file)[1].split('.')[0][:-1][3:])
     # Now we have our transect name, initialize our parent Stack instance with it
-    transect = Stack(value)
+    # This is mostly just a temporary list
+    traverse = Stack(value)
     # First two lines are comments
-    transect.comment = lines.pop(0) + "\n" + lines.pop(0)
+    traverse.comment = lines.pop(0) + "\n" + lines.pop(0)
 
     # Grab third line in the file (Line "C" in RDI ASCII docs)
-    # Line C describes this transect, store info as attributes in Transect
+    # Line C describes this traverse, store info as attributes in Stack instance
     attrs = "depth_cell_length", "blank_after_transmit", "depth_from_config", \
         "number_depth_cells", "pings_per_ensemble", "time_per_ensemble", \
         "profiling_mode"
 
     vals = split_line(lines.pop(0))
     for i in range(len(attrs)):
-        setattr(transect, attrs[i], vals[i])
+        setattr(traverse, attrs[i], vals[i])
 
     num = 1
     while len(lines):
@@ -60,9 +62,9 @@ def importTransectFile(file):
         for i in range(En.num_bins):
             En.push(Bin(*split_line(lines.pop(0))))
         En.calcAverages()
-        transect.push(En)
+        traverse.push(En)
 #    print(os.path.split(file)[-1], ",end,", En.latitude,",", En.longitude)
-    return value, transect
+    return value, traverse
 
 def parse_transect(transect, start=0):
     location = transect[start]
@@ -84,57 +86,58 @@ if __name__ == "__main__":
     if os.name == 'posix': os.chdir('/Users/John/Dropbox/Carroll/adcp/src')
 
     # Initialize a list of transects
-    transect_list = []
+    traverse_list = []
 
     # Grab each trasect file and push them onto the list
     for i in range(20):
         file = 'C:\\Documents and Settings\\John\\Desktop\\august_data\\LWG%03it.000' % i
-        value, transect = importTransectFile(file)
-        heappush(transect_list, (value, transect))
+        value, traverse = importTraverseFile(file)
+        # We use the Heap module to build the transect, so we keep it ordered.
+        heappush(traverse_list, (value, traverse))
 
-    # Start and stop slices for each transect. True is a transect, False is a
-    # group of readings taken while holding stationary. 
-    # (i.e. not used in transect calculations, we ignore the later in this program).
-    #trans_slices = [(True,0,4),(False,4,7),(True,7,12),(False,12,15),\
-    #                (True,15,19),(False,19,21),(True,21,25),(False,25)]
-    trans_slices = [(True,0,4),(True,4,8),(True,8,12),(True,12,16),\
-                    (True,16,20),(False,20,23)]
+    # Each transect is a group of traverses, these are start and stop slices for each 
+    # transect.
+    #trans_slices = [(0,4),(4,7),(7,12),(12,15),\
+    #                (15,19),(19,21),(21,25),(25)]
+    trans_slices = [(0,4),(4,8),(8,12),(12,16),\
+                    (16,20),(20,23)]
     # Build a dictionary of transects 1-9 so we can access them by number
     Trans = dict([(i,()) for i in range(1,7)])
     # And add Ensemble Collections to the new dictionary for later consumption
     n = 1
-    for is_t, start, stop in trans_slices[:-1]:
+    for start, stop in trans_slices[:-1]:
         for i in range(start, stop): #This is a single list of ensembles
-            trans = heappop(transect_list)[1]
+            trans = heappop(traverse_list)[1]
             for en in trans:
                 Trans[n] += en,
         n += 1
 
     # make a KML file of everything we have:
-    kml = KML("all_transects")
-    for i in range(1,6):
-        trans = Trans[i]
-        for en in trans:
-            name = int(en.azimuth)
-            point = en.point
-            velocity, azimuth = en.velocity, en.azimuth
-            depth = en.depth
-            style = int(velocity)
-            if style == 0: style = "O"
-            elif ((name < 0) or (style < 0)): 
-                style = "red-diamond"
-                name = ""
-            kml.addPlacemark(Placemark(name, point, velocity, azimuth, depth, style))
-    kml.output()
+#    kml = KML("all_transects")
+#    for i in range(1,6):
+#        trans = Trans[i]
+#        for en in trans:
+#            name = int(en.azimuth)
+#            point = en.point
+#            velocity, azimuth = en.velocity, en.azimuth
+#            depth = en.depth
+#            style = int(velocity)
+#            if style == 0: style = "O"
+#            elif ((name < 0) or (style < 0)): 
+#                style = "red-diamond"
+#                name = ""
+#            kml.addPlacemark(Placemark(name, point, velocity, azimuth, depth, style))
+#    kml.output()
         
     collections = {1: None, 2: None, 3: None, 4: None, 5:None}
     for i in collections.keys(): 
         collections[i] = parse_transect(Trans[i], -1)
-#    collections[1] = collections[1][:12]
+    # This is where we strip out any parts of the final transect that we don't want
+    collections[3] = collections[3][:14]
 
-#    outputData("Column Averaged", collections)
-#    for dep in [6,12,18,24]:
-#        depth = int(dep * 3.2808399)
-#        outputData("%i Feet Depth" % dep, collections, atDepth=dep)
+    outputData("Column Averaged", collections)
+    for dep in [6,12,18,24]:
+        depth = int(dep * 3.2808399)
+        outputData("%i Feet Depth" % dep, collections, atDepth=dep)
 
     print("Done")
