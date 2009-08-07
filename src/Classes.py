@@ -99,6 +99,56 @@ class Ensemble(Stack):
         self.id = id(self)
         self.velocity = None # Column averaged velocity
         self.azimuth = None # Column averaged azimuth
+        self.year = None #  
+        self.month = None #  
+        self.day = None #  
+        self.hour = None # 
+        self.minute = None # 
+        self.second = None # 
+        self.hundredths = None # 
+        self.number = None #  
+        self.num_ensembles = None # 
+        self.pitch = None # 
+        self.roll = None # 
+        self.corrected_heading = None # 
+        self.temp = None # 
+        self.velocity_east = None # 
+        self.velocity_west = None # 
+        self.velocity_up = None # 
+        self.velocity_error = None # 
+        self.bottom_depth = None #  
+        self.altitude = None # 
+        self.delta_altitude = None # 
+        self.HDOP = None # 
+        self.depth1 = None # 
+        self.depth2 = None # 
+        self.depth3 = None # 
+        self.depth4 = None # 
+        self.elapsed_distance = None # 
+        self.elapsed_time = None # 
+        self.distance_north = None # 
+        self.distance_east = None # 
+        self.distance_good = None # 
+        self.latitude = None # 
+        self.longitude = None # 
+        self.invalid = None # 
+        self.unused = None # 
+        self.discharg_mid = None # 
+        self.discharge_top = None # 
+        self.discharge_bot = None # 
+        self.start_discharge = None # 
+        self.start_dist = None # 
+        self.end_discharge = None # 
+        self.end_dist = None # 
+        self.start_depth = None # 
+        self.end_depth = None # 
+        self.num_bins = None # 
+        self.unit = None # 
+        self.velocity_ref = None # 
+        self.intensity_units = None # 
+        self.intensity_scale = None # 
+        self.sound_absorbtion = None # 
+
     def __eq__(self, other):
         return self is other
     def __hash__(self):
@@ -125,7 +175,11 @@ class Ensemble(Stack):
         lst = []
         for d in [self.depth1, self.depth2, self.depth3, self.depth4]:
             if d > 0: lst.append(d)
-        self.depth = Mean(lst) 
+        try:
+            self.depth = Mean(lst)
+        except ZeroDivisionError:
+            pass
+            self.depth = Mean()
     def averageAtDepth(self, depth):
         vel = []
         azm = []
