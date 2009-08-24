@@ -4,22 +4,22 @@ __date__ ="$Jun 11, 2009 8:13:54 AM$"
 from bisect import bisect
 from heapq import heapify, heappush, heappop
 import gislib
-from utils import split_line, meanstdv
-from math import isnan
+from utils import split_line, filter_list
+from math import isnan, sin, cos, atan2, sqrt, radians, degrees, pi
 
 class Mean(float):
-    "Class to smartly hold magnitude and direction averages and standard deviations"
+    "Class to smartly hold magnitude averages and standard deviations"
     def __new__(cls, lst=[]):
         #Unfortunately, we have to run through this twice because we
         # can't store a value in the instance from the __new__() method,
         # only in the class
-        if len(lst): value = meanstdv(lst)[0]
+        if len(lst): value = cls.meanstdv(cls, lst)[0]
         else: value = -9e9 # Allow initialization to a null value.
         return float.__new__(cls, value)
     def __init__(self, lst=[]):
         self.list = lst #Store the list, so we can later do interesting data work
         if len(lst):
-            value, self.std, self.n, self.err, self.min, self.max = meanstdv(lst)
+            value, self.std, self.n, self.err, self.min, self.max = self.meanstdv(lst)
         else:
             self.std = float(-9e9)
             self.n = 9e9
@@ -45,6 +45,114 @@ class Mean(float):
             return super(Mean, self).__add__(other)
     def __iadd__(self, other):
         return self.__add__(other)
+
+    def meanstdv(self, lst, bad_value=-32768):
+        "Calculate mean and standard deviation of data in lst:"
+        lst = filter_list(lst, bad_value)
+        if not len(lst):
+            return tuple([bad_value for i in range(6)])
+        n, mean, std = len(lst), 0, 0
+        for a in lst:
+            mean += a
+        mean = mean / float(n)
+        for a in lst:
+            std += (a - mean)**2
+        try: std = sqrt(std / float(n-1))
+        except ZeroDivisionError: 
+            if (n == 1): std = 0
+            else: raise ZeroDivisionError
+        err = std/sqrt(n)
+        return mean, std, n, err, min(lst), max(lst)
+
+class MeanAzimuth(float):
+    "Class to smartly hold direction averages and standard deviations"
+    def __new__(cls, lst=[]):
+        #Unfortunately, we have to run through this twice because we
+        # can't store a value in the instance from the __new__() method,
+        # only in the class- but we need the value to call the __new__()
+        # method of float().
+        if len(lst): value = cls.meanstdv(cls, lst)[0]
+        else: value = -9e9 # Allow initialization to a null value.
+        return float.__new__(cls, degrees(value)) #meanstdv returns the angle in radians
+    def __init__(self, lst=[]):
+        #Store the list, so we can later do interesting data work
+        # Note that we project the data into radians!
+        self.list = [radians(i) for i in filter_list(lst)]
+        if len(lst):
+            value, self.std, self.n, self.err, self.min, self.max = self.meanstdv(lst)
+        else:
+            self.std = float(-9e9)
+            self.n = 9e9
+            self.err = 9e9
+            self.min = 9.e9
+            self.max = 9e9
+    def __repr__(self):
+        return "MeanAzimuth(%0.3f) at <%i>" % (degrees(self), id(self))
+    def __call__(self, show_list=False):
+        tup = float(degrees(self)), self.std, self.n, self.err, degrees(self.min), degrees(self.max)
+        if show_list: tup += self.list,
+        return tup
+    def __str__(self):
+        return "Mean=%0.3f, Standard deviation=%0.3f, n=%i, Standard Error=%0.3f" %( degrees(self), self.std, self.n, self.err)
+    def __add__(self, other):
+        "Add values together, smartly carrying our mean representation"
+        if isinstance(other, MeanAzimuth):
+            #We've initialized null as a placeholder, return the other value in whole
+            if self == -9e9: return MeanAzimuth(other.list)
+            lst = self.list + other.list
+            return MeanAzimuth(lst)
+        else:
+            return super(MeanAzimuth, self).__add__(other)
+    def __iadd__(self, other):
+        return self.__add__(other)
+    def angleSpread(self):
+        "Calculate the angle overwhich our data is distributed"
+        if (self == -9e9): return 0
+        else:
+            return self.max - self.min
+    spread = property(angleSpread)
+
+    def meanstdv(self, lst, bad_value=-32768):
+        "Calculate mean and standard deviation of data in lst:"
+        lst = filter_list(lst, bad_value)
+        if not len(lst):
+            return tuple([bad_value for i in range(6)])
+        n, std = len(lst),0
+        # The mean of an azimuth is no simple task.
+        
+        # Some sanity checking
+        if ((max(lst)>360) or (min(lst)< 0)): raise Exception 
+        # Convenience functions
+        ave = lambda x: sum(x)/len(x)
+        r_ = lambda x: radians(x)
+        d_ = lambda x: degrees(x)
+        rotate = lambda x: x+(2*pi) if x<0 else x # bring back to positive angle values
+
+        # self.list is already in radians.
+        sa = ave([sin(i) for i in lst])
+        ca = ave([cos(i) for i in lst])
+        # Take the arctan of this, using atan2 to preserve the quadrant information
+        mean = rotate(atan2(sa,ca))
+        # In a normal calculation, our standard deviation value would be
+        #
+        # for a in lst:
+        #     std += (a - mean)**2
+        # try: std = sqrt(std / float(n-1))
+        # except ZeroDivisionError: 
+        #     if (n == 1): std = 0
+        #     else: raise ZeroDivisionError
+        #
+        # However, we cannot do something so simple because angles may cross 0 (i.e. average
+        # north could be the list of values [355, 356, 0, 4,5]. Thus, we have to keep
+        # our mean into radians, and we'll use the list of radians as our sample population
+        for a in lst:
+            std += (a - mean)**2
+        try: std = sqrt(std / float(n-1))
+        except ZeroDivisionError:
+            if (n == 1): std = 0 # Only one sample, Standard Deviation is meaningless
+            else: raise ZeroDivisionError        
+        err = std/sqrt(n)
+        return mean, std, n, err, min(lst), max(lst)
 
 class Bin(float):
     def __new__(cls, *args):
@@ -170,8 +278,9 @@ class Ensemble(Stack):
         for bin in self:
             vel.append(bin.velocity)
             azm.append(bin.azimuth)
-        self.velocity = Mean(vel)
-        self.azimuth = Mean(azm)
+        velocity = Mean(vel)                            # This is pretty stupid
+        azimuth = MeanAzimuth(azm)                             # but it's here because the PyDev
+        self.velocity, self.azimuth = velocity, azimuth # debugger's not introspecting well
         lst = []
         for d in [self.depth1, self.depth2, self.depth3, self.depth4]:
             if d > 0: lst.append(d)
@@ -180,13 +289,10 @@ class Ensemble(Stack):
         except ZeroDivisionError:
             pass
             self.depth = Mean()
-    def averageAtDepth(self, depth):
-        vel = []
-        azm = []
-        for i in self:
-            vel.append(self.get(depth).velocity)
-            azm.append(self.get(depth).azimuth)
-        return Mean(vel), Mean(azm)
+    def velocityAtDepth(self, depth):
+        return self.get(depth).velocity
+    def azimuthAtDepth(self, depth):
+        return self.get(depth).azimuth
 
 class EnsembleCollection(Stack):
     def __init__(self, ensemble, radius=30):
@@ -201,7 +307,7 @@ class EnsembleCollection(Stack):
             vel += en.velocity
         return vel
     def calcAzimuthAverage(self):
-        azm = Mean()
+        azm = MeanAzimuth()
         for en in self:
             azm += en.azimuth
         return azm
@@ -217,13 +323,14 @@ class EnsembleCollection(Stack):
         return self.value
     point = property(getCoordinates)
     def averageAtDepth(self, depth):
-        vel = Mean()
-        azm = Mean()
+        vel = []
+        azm = []
         for en in self:
-            v, a = en.averageAtDepth(depth)
-            vel += v
-            azm += a
-        return vel, azm
+            v = en.velocityAtDepth(depth)
+            a = en.azimuthAtDepth(depth)
+            if v != -32768: vel.append(en.velocityAtDepth(depth))
+            if a != -32768: azm.append(en.azimuthAtDepth(depth))
+        return Mean(vel), MeanAzimuth(azm)
     def push(self, item):
         if not isinstance(item, Ensemble): raise Exception("Cannot add type: %s" % type(item))
         heappush(self, item)

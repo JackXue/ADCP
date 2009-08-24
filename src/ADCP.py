@@ -63,7 +63,6 @@ def importTraverseFile(file):
             En.push(Bin(*split_line(lines.pop(0))))
         En.calcAverages()
         traverse.push(En)
-#    print(os.path.split(file)[-1], ",end,", En.latitude,",", En.longitude)
     return value, traverse
 
 def parse_transect(transect, start=0):

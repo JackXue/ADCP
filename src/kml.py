@@ -1,3 +1,4 @@
+from math import degrees
 
 def description_from_list(lst):
     t = "<![CDATA[<h1>%i Ensembles</h1><ul>" % len(lst)
@@ -12,7 +13,7 @@ def description_from_text(text):
     return t
 
 class Placemark(object):
-    def __init__(self, name, point, velocity, azimuth, depth, style="O", description = None):
+    def __init__(self, name, point, velocity, azimuth, depth, style="O", description = None, number=0):
         self.name = name
         self.point = point
         self.description = description
@@ -20,16 +21,20 @@ class Placemark(object):
         self.velocity = velocity
         self.azimuth = azimuth
         self.depth = depth
+        self.number = number
         
     def output(self):
         #TODO: Really look at abstracting this. Placemark shouldn't need to know about ensemble
         point = self.point
         vel = self.velocity()
         azm = self.azimuth()
+        spread = int(degrees(self.azimuth.spread))
         dep = self.depth()
         data = {"velocity": vel[0],"v_dev": vel[1],"v_num": vel[2],"v_err": vel[3], "v_min": vel[4], "v_max": vel[5],
-                "azimuth": int(azm[0]),"a_dev": azm[1],"a_num": azm[2],"a_err": azm[3], "a_min": azm[4], "a_max": azm[5],
+                "azimuth": int(azm[0]),"a_dev": azm[1],"a_num": azm[2],"a_err": azm[3], "a_min": azm[4], "a_max": azm[5], "a_spread": spread,
                 "depth": dep[0],"d_dev": dep[1],"d_num": dep[2],"d_err": dep[3], "d_min": dep[4], "d_max": dep[5]}
+        title = "Point #%i<br />" % self.number
+        title += "\t" + ", ".join([str(i) for i in point])
         self.text = """
         <Placemark>
             <name>%s</name>
@@ -37,7 +42,7 @@ class Placemark(object):
             <ExtendedData>
                 <Data name="point">
                     <value>%s</value>
-                </Data>\n""" % (self.name, str(self.style), ", ".join([str(i) for i in point]))
+                </Data>\n""" % (self.name, self.style, title)
         for name, value in data.items():
             if isinstance(value,int):
                 val = "<value>%i</value>" % value
@@ -101,7 +106,8 @@ class KML(object):
               Mean azimuth: $[azimuth]<br />
               Standard error: $[a_err]<br />
               Standard deviation:  $[a_dev]<br />
-              $[a_num] samples in range ($[a_min], $[a_max])
+              $[a_num] samples in range ($[a_min], $[a_max])<br />
+              Samples distributed over $[a_spread] degrees
 
               <h4>Depth</h4>
               Mean depth: $[depth]<br />
