@@ -4,15 +4,19 @@ from math import radians, degrees
       
 def outputData(name, collection, atDepth=None):
     kml = KML(name)
-    number = 0
     file = open("../data/%s.csv" % name.replace(" ","_"), "w")
     file.write("number, latitude, longitude, v_mean, v_dev, v_n, v_err, v_min, v_max, a_mean, a_dev, a_n, a_err, a_min, a_max, d_mean, d_dev, d_n, d_err, d_min, d_max\n")
     for lst in collection.values():
         for col in lst:
             point = col.point
-            if atDepth: velocity, azimuth = col.averageAtDepth(atDepth)
-            else: velocity, azimuth = col.velocity, col.azimuth
-            print(number, azimuth.list)
+            if atDepth: 
+                velocity, azimuth = col.averageAtDepth(atDepth)
+            else: 
+                velocity, azimuth = col.velocity, col.azimuth
+                vlst = velocity.list
+                alst = azimuth.list
+                olst = azimuth.original_list
+                pass
             name = int(degrees(azimuth)) # Cast to a Python int b/c MeanAzimuth has a long string representation
             depth = col.depth
             style = int(velocity)
@@ -20,13 +24,13 @@ def outputData(name, collection, atDepth=None):
             elif ((name < 0) or (style < 0)): 
                 style = "red-diamond"
                 name = ""
-            kml.addPlacemark(Placemark(name, point, velocity, azimuth, depth, style, number))
-            file.write("%i, %f, %f," % (number, point[0], point[1]))
+            PL = Placemark(name, point, velocity, azimuth, depth, style)
+            kml.addPlacemark(PL)
+            file.write("%i, %f, %f," % (PL.id, point[0], point[1]))
             for val in [velocity, azimuth, depth]:
                 for v in val():
                     file.write(" %0.3f," % v)
             file.write("\n")
-            number += 1
     kml.output()
     file.close()
 def filter_list(lst, bad_value=-32768):

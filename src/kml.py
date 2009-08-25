@@ -1,4 +1,5 @@
 from math import degrees
+from itertools import count
 
 def description_from_list(lst):
     t = "<![CDATA[<h1>%i Ensembles</h1><ul>" % len(lst)
@@ -13,7 +14,8 @@ def description_from_text(text):
     return t
 
 class Placemark(object):
-    def __init__(self, name, point, velocity, azimuth, depth, style="O", description = None, number=0):
+    id = count()
+    def __init__(self, name, point, velocity, azimuth, depth, style="O", description = None):
         self.name = name
         self.point = point
         self.description = description
@@ -21,8 +23,7 @@ class Placemark(object):
         self.velocity = velocity
         self.azimuth = azimuth
         self.depth = depth
-        self.number = number
-        
+        self.id = next(Placemark.id)
     def output(self):
         #TODO: Really look at abstracting this. Placemark shouldn't need to know about ensemble
         point = self.point
@@ -33,7 +34,7 @@ class Placemark(object):
         data = {"velocity": vel[0],"v_dev": vel[1],"v_num": vel[2],"v_err": vel[3], "v_min": vel[4], "v_max": vel[5],
                 "azimuth": int(azm[0]),"a_dev": azm[1],"a_num": azm[2],"a_err": azm[3], "a_min": azm[4], "a_max": azm[5], "a_spread": spread,
                 "depth": dep[0],"d_dev": dep[1],"d_num": dep[2],"d_err": dep[3], "d_min": dep[4], "d_max": dep[5]}
-        title = "Point #%i<br />" % self.number
+        title = "Point #%i<br />" % self.id
         title += "\t" + ", ".join([str(i) for i in point])
         self.text = """
         <Placemark>

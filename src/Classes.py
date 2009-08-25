@@ -72,11 +72,18 @@ class MeanAzimuth(float):
         # only in the class- but we need the value to call the __new__()
         # method of float().
         if len(lst): value = cls.meanstdv(cls, lst)[0]
-        else: value = -9e9 # Allow initialization to a null value.
-        return float.__new__(cls, degrees(value)) #meanstdv returns the angle in radians
+        # Allow initialization to a null value.
+        # We use pi*2 because it is equal to zero, and we should see "0" in
+        # any internal calculations, rather than "360," so it shouldn't affect
+        # real averages.
+        else: value = pi*2
+        value = pi*2 if (value == -32768) else value
+        return float.__new__(cls, value) #meanstdv returns the angle in radians
     def __init__(self, lst=[]):
         #Store the list, so we can later do interesting data work
         # Note that we project the data into radians!
+        self.original_list = lst
+        
         self.list = [radians(i) for i in filter_list(lst)]
         if len(lst):
             value, self.std, self.n, self.err, self.min, self.max = self.meanstdv(lst)
@@ -98,7 +105,7 @@ class MeanAzimuth(float):
         "Add values together, smartly carrying our mean representation"
         if isinstance(other, MeanAzimuth):
             #We've initialized null as a placeholder, return the other value in whole
-            if self == -9e9: return MeanAzimuth(other.list)
+            if self == pi*2: return MeanAzimuth(other.list)
             lst = self.list + other.list
             return MeanAzimuth(lst)
         else:
@@ -106,22 +113,30 @@ class MeanAzimuth(float):
     def __iadd__(self, other):
         return self.__add__(other)
     def angleSpread(self):
-        "Calculate the angle overwhich our data is distributed"
+        "Calculate the angle over which our data is distributed"
         if (self == -9e9): return 0
         else:
-            return self.max - self.min
+            smin, smax = self.min, self.max
+            val = self.max - self.min
+            deg = val
+#            lst = self.list
+#            orig = self.original_list
+#            omin, omax = min(orig), max(orig)
+            return deg
     spread = property(angleSpread)
 
     def meanstdv(self, lst, bad_value=-32768):
         "Calculate mean and standard deviation of data in lst:"
-        lst = filter_list(lst, bad_value)
+        if (lst[0]<1):
+            pass
+        lst = [radians(i) for i in filter_list(lst, bad_value)]
         if not len(lst):
             return tuple([bad_value for i in range(6)])
         n, std = len(lst),0
         # The mean of an azimuth is no simple task.
         
         # Some sanity checking
-        if ((max(lst)>360) or (min(lst)< 0)): raise Exception 
+        if ((max(lst)>2*pi) or (min(lst)< 0)): raise Exception 
         # Convenience functions
         ave = lambda x: sum(x)/len(x)
         r_ = lambda x: radians(x)
@@ -154,20 +169,16 @@ class MeanAzimuth(float):
         err = std/sqrt(n)
         return mean, std, n, err, min(lst), max(lst)
 
-class Bin(float):
-    def __new__(cls, *args):
-        return float.__new__(cls, args[0])
-#    def __init__(self, depth, magnitude, azimuth, east, north, up,
-#                 error, backscatter0,backscatter1,backscatter2,backscatter3,
-#                 percent_good, discharge):
+class Bin(object):
     def __init__(self, *args):
-        self.velocity, self.azimuth, self.east, self.north, self.up, self.error, \
+        self.value, self.velocity, self.azimuth, \
+            self.east, self.north, self.up, self.error, \
             back0, back1, back2, back3, \
             self.percent_good, self.discharge = args[1:]
         self.backscatter = back0, back1, back2, back3
         
     def __repr__(self):
-        print("Bin (%0.2f)" %self)
+        print("Bin (%0.2f)" %self.value)
 
 class Stack(list):
     def __init__(self, value):
@@ -261,7 +272,7 @@ class Ensemble(Stack):
         return self is other
     def __hash__(self):
         return self.id
-    def __repr__(self): return "Ensemble <%i>" % self.id
+    def __repr__(self): return "Ensemble <%i>" % self.azimuth()
     def check_item(self, bin): return isinstance(bin,Bin)
     def get_point(self): return self.latitude, self.longitude
     point = property(get_point)
@@ -278,9 +289,16 @@ class Ensemble(Stack):
         for bin in self:
             vel.append(bin.velocity)
             azm.append(bin.azimuth)
-        velocity = Mean(vel)                            # This is pretty stupid
-        azimuth = MeanAzimuth(azm)                             # but it's here because the PyDev
-        self.velocity, self.azimuth = velocity, azimuth # debugger's not introspecting well
+            a = azm[-1]
+            if ((a < 1) and (a != -32768)):
+                pass
+        self.velocity = Mean(vel)
+        self.azimuth = MeanAzimuth(azm)
+        azm = self.azimuth
+        lst = self.azimuth.list
+        olst = self.azimuth.original_list
+        if (self.azimuth < 1):
+            pass
         lst = []
         for d in [self.depth1, self.depth2, self.depth3, self.depth4]:
             if d > 0: lst.append(d)
