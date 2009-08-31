@@ -1,5 +1,6 @@
 from math import degrees
 from itertools import count
+from Rose import Rose
 
 def description_from_list(lst):
     t = "<![CDATA[<h1>%i Ensembles</h1><ul>" % len(lst)
@@ -29,10 +30,12 @@ class Placemark(object):
         point = self.point
         vel = self.velocity()
         azm = self.azimuth()
-        spread = int(degrees(self.azimuth.spread))
+        rose = Rose(self.azimuth.original_list)
+        if ((azm[2] < 10) and (azm[3] > 0.2)):
+            azm = tuple([-32768 for i in range(6)])
         dep = self.depth()
         data = {"velocity": vel[0],"v_dev": vel[1],"v_num": vel[2],"v_err": vel[3], "v_min": vel[4], "v_max": vel[5],
-                "azimuth": int(azm[0]),"a_dev": azm[1],"a_num": azm[2],"a_err": azm[3], "a_min": azm[4], "a_max": azm[5], "a_spread": spread,
+                "azimuth": int(azm[0]),"a_dev": azm[1],"a_num": azm[2],"a_err": azm[3],
                 "depth": dep[0],"d_dev": dep[1],"d_num": dep[2],"d_err": dep[3], "d_min": dep[4], "d_max": dep[5]}
         title = "Point #%i<br />" % self.id
         title += "\t" + ", ".join([str(i) for i in point])
@@ -51,7 +54,7 @@ class Placemark(object):
                 val = "<value>%0.3f</value>" % value
             self.text += """
                 <Data name="%s">%s</Data>\n""" % (name, val)
-        
+        self.text += """<Data name="rose"><value><img src='%s' /></value></Data>\n""" % rose.URL().replace('&','&amp;')
         self.text += """
             </ExtendedData>
             <Point>
@@ -107,8 +110,8 @@ class KML(object):
               Mean azimuth: $[azimuth]<br />
               Standard error: $[a_err]<br />
               Standard deviation:  $[a_dev]<br />
-              $[a_num] samples in range ($[a_min], $[a_max])<br />
-              Samples distributed over $[a_spread] degrees
+              $[a_num] in rose diagram:<br />
+              $[rose]
 
               <h4>Depth</h4>
               Mean depth: $[depth]<br />

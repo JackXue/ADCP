@@ -8,15 +8,12 @@ def outputData(name, collection, atDepth=None):
     file.write("number, latitude, longitude, v_mean, v_dev, v_n, v_err, v_min, v_max, a_mean, a_dev, a_n, a_err, a_min, a_max, d_mean, d_dev, d_n, d_err, d_min, d_max\n")
     for lst in collection.values():
         for col in lst:
+            col.calcAverages()
             point = col.point
             if atDepth: 
                 velocity, azimuth = col.averageAtDepth(atDepth)
             else: 
                 velocity, azimuth = col.velocity, col.azimuth
-                vlst = velocity.list
-                alst = azimuth.list
-                olst = azimuth.original_list
-                pass
             name = int(degrees(azimuth)) # Cast to a Python int b/c MeanAzimuth has a long string representation
             depth = col.depth
             style = int(velocity)

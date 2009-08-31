@@ -93,14 +93,14 @@ class MeanAzimuth(float):
             self.err = 9e9
             self.min = 9.e9
             self.max = 9e9
-    def __repr__(self):
-        return "MeanAzimuth(%0.3f) at <%i>" % (degrees(self), id(self))
+#    def __repr__(self):
+#        return "MeanAzimuth(%0.3f) at <%i>" % (degrees(self), id(self))
     def __call__(self, show_list=False):
         tup = float(degrees(self)), self.std, self.n, self.err, degrees(self.min), degrees(self.max)
         if show_list: tup += self.list,
         return tup
-    def __str__(self):
-        return "Mean=%0.3f, Standard deviation=%0.3f, n=%i, Standard Error=%0.3f" %( degrees(self), self.std, self.n, self.err)
+#    def __str__(self):
+#        return "Mean=%0.3f, Standard deviation=%0.3f, n=%i, Standard Error=%0.3f" %( degrees(self), self.std, self.n, self.err)
     def __add__(self, other):
         "Add values together, smartly carrying our mean representation"
         if isinstance(other, MeanAzimuth):
@@ -117,12 +117,13 @@ class MeanAzimuth(float):
         if (self == -9e9): return 0
         else:
             smin, smax = self.min, self.max
-            val = self.max - self.min
-            deg = val
+            rad = self.max - self.min
+            if (rad > pi): rad = abs((self.min + 2*pi) - self.max)
+            
 #            lst = self.list
 #            orig = self.original_list
 #            omin, omax = min(orig), max(orig)
-            return deg
+            return rad
     spread = property(angleSpread)
 
     def meanstdv(self, lst, bad_value=-32768):
@@ -139,8 +140,6 @@ class MeanAzimuth(float):
         if ((max(lst)>2*pi) or (min(lst)< 0)): raise Exception 
         # Convenience functions
         ave = lambda x: sum(x)/len(x)
-        r_ = lambda x: radians(x)
-        d_ = lambda x: degrees(x)
         rotate = lambda x: x+(2*pi) if x<0 else x # bring back to positive angle values
 
         # self.list is already in radians.
@@ -174,24 +173,130 @@ class Bin(object):
         self.value, self.velocity, self.azimuth, \
             self.east, self.north, self.up, self.error, \
             back0, back1, back2, back3, \
-            self.percent_good, self.discharge = args[1:]
+            self.percent_good, self.discharge = args
         self.backscatter = back0, back1, back2, back3
         
-    def __repr__(self):
-        print("Bin (%0.2f)" %self.value)
+    def other_value(self, other):
+        # This should probably be implemented as a decorator
+        if isinstance(other,Bin):
+            val = other.value
+        elif isinstance(other,(float,int)):
+            val = other
+        else:
+            raise Exception("Must be numeric or Bin type")
+        return val
+    def __lt__(self, other):
+        val = self.other_value(other)
+        return self.value < val
+    def __le__(self, other):
+        val = self.other_value(other)
+        return self.value <= val
+    def __eq__(self, other):
+        val = self.other_value(other)
+        return self.value == val
+    def __ne__(self, other):
+        val = self.other_value(other)
+        return self.value != val
+    def __gt__(self, other):
+        val = self.other_value(other)
+        return self.value > val
+    def __ge__(self, other):
+        val = self.other_value(other)
+        return self.value >= val
+    # Math operations return Python builtin numeric types
+    def __sub__(self, other):
+        val = self.other_value(other)
+        return self.value - val
+    def __add__(self, other):
+        val = self.other_value(other)
+        return self.value + val
+    def __mul__(self, other):
+        val = self.other_value(other)
+        return self.value * val
+    def __div__(self, other):
+        val = self.other_value(other)
+        return self.value / val
+    def __rsub__(self, other):
+        return other - self.value
+    def __radd__(self, other):
+        return other + self.value
+    def __rmul__(self, other):
+        return other * self.value
+    def __rdiv__(self, other):
+        return other / self.value
+    # return this Bin object with added value
+    def __isub__(self, other):
+        val = self.other_value(other)
+        self.value - val
+        return self
+    def __iadd__(self, other):
+        val = self.other_value(other)
+        self.value + val
+        return self
+    def __imul__(self, other):
+        val = self.other_value(other)
+        self.value * val
+        return self
+    def __idiv__(self, other):
+        val = self.other_value(other)
+        self.value / val
+        return self
 
-class Stack(list):
+    def __repr__(self):
+        return "Bin (%0.2f)" %self.value
+
+class Stack(object):
     def __init__(self, value):
-        list.__init__(self)
         self.value = value
+        self.list = []
+    def other_value(self, other):
+        # This should probably be implemented as a decorator
+        if isinstance(other,Stack):
+            val = other.value
+        elif isinstance(other,(float,int)):
+            val = other
+        else:
+            raise Exception("Must be numeric or Bin type")
+        return val
+    def __lt__(self, other):
+        val = self.other_value(other)
+        return self.value < val
+    def __le__(self, other):
+        val = self.other_value(other)
+        return self.value <= val
+    def __eq__(self, other):
+        val = self.other_value(other)
+        return self.value == val
+    def __ne__(self, other):
+        val = self.other_value(other)
+        return self.value != val
+    def __gt__(self, other):
+        val = self.other_value(other)
+        return self.value > val
+    def __ge__(self, other):
+        val = self.other_value(other)
+        return self.value >= val
+    def __len__(self): return len(self.list)
+    def __getitem__(self, value):
+        if value in self.list: return self.list[self.list.index(value)]
+        else: return self.__get_nearest_index(value)
+    def __setitem__(self, key, value): raise NotImplementedError
+    def __delitem__(self, key, value): raise NotImplementedError
+    def __iter__(self):
+        for val in self.list: yield val
+    def __contains__(self, item):
+        return (item in self.list)
     def append(self, item):
         "We should raise an exception if we try to append, rather than heappush"
         raise Exception("Nope, use push()")
     def push(self, item):
 #        if not self.check_item(self, item): raise Exception("Not implemented in subclass")
-        heappush(self, item)
+        try:
+            heappush(self.list, item)
+        except:
+            pass
     def get(self, value):
-        if value in self: return self[self.index(value)]
+        if value in self.list: return self.list[self.list.index(value)]
         else: return self.__get_nearest_index(value)
     def __get_nearest_index(self, index):
         """Get the bin that is closest to any given depth. The boundaries of the
@@ -200,13 +305,13 @@ class Stack(list):
         should be good enough.
         """
         # Kilometer's downstream and upstream
-        lower = bisect(self,index)-1 #if bisect(sites,depth)-1 > 0 else 0 # zero is the lowest (protect against value of -1)
+        lower = bisect(self.list,index)-1 #if bisect(sites,depth)-1 > 0 else 0 # zero is the lowest (protect against value of -1)
         # bisect returns the length of a list when the bisecting number is greater than the greatest value.
         # Here we protect by max-ing out at the length of the list.
-        upper = min([bisect(self,index),len(self)-1])
+        upper = min([bisect(self.list,index),len(self.list)-1])
         # Use the indexes to get the kilometers from the sites list
-        down = self[lower]
-        up = self[upper]
+        down = self.list[lower]
+        up = self.list[upper]
         if index-down < up-index: # Only if the distance to the downstream node is closer do we use that
             return down
         else:
@@ -289,16 +394,8 @@ class Ensemble(Stack):
         for bin in self:
             vel.append(bin.velocity)
             azm.append(bin.azimuth)
-            a = azm[-1]
-            if ((a < 1) and (a != -32768)):
-                pass
         self.velocity = Mean(vel)
         self.azimuth = MeanAzimuth(azm)
-        azm = self.azimuth
-        lst = self.azimuth.list
-        olst = self.azimuth.original_list
-        if (self.azimuth < 1):
-            pass
         lst = []
         for d in [self.depth1, self.depth2, self.depth3, self.depth4]:
             if d > 0: lst.append(d)
@@ -318,25 +415,33 @@ class EnsembleCollection(Stack):
         self.radius = radius
         Stack.__init__(self, value)
         self.push(ensemble)
+        self.azimuth = None
+        self.velocity = None
+        self.depth = None
     def __repr__(self): return "EnsembleCollection at (%0.3f, %0.3f)" % self.value
+    def calcAverages(self):
+        self.azimuth = self.calcAzimuthAverage()
+        self.velocity = self.calcVelocityAverage()
+        self.depth = self.calcDepthAverage()
     def calcVelocityAverage(self):
-        vel = Mean()
+        vel = []
         for en in self:
-            vel += en.velocity
-        return vel
+            vel += en.velocity.list
+        return Mean(vel)
     def calcAzimuthAverage(self):
-        azm = MeanAzimuth()
+        azm = []
         for en in self:
-            azm += en.azimuth
-        return azm
+            # Use the original list, because otherwise we
+            # convert radians to radians in meanstdv() and
+            # that's really fucking bad (and caused me two
+            # days of debugging.)
+            azm += en.azimuth.original_list
+        return MeanAzimuth(azm)
     def calcDepthAverage(self):
-        dep = Mean()
+        dep = []
         for en in self:
-            dep += en.depth
-        return dep
-    velocity = property(calcVelocityAverage)
-    azimuth = property(calcAzimuthAverage)
-    depth = property(calcDepthAverage)
+            dep += en.depth.list
+        return Mean(dep)
     def getCoordinates(self):
         return self.value
     point = property(getCoordinates)
@@ -344,12 +449,10 @@ class EnsembleCollection(Stack):
         vel = []
         azm = []
         for en in self:
-            v = en.velocityAtDepth(depth)
-            a = en.azimuthAtDepth(depth)
-            if v != -32768: vel.append(en.velocityAtDepth(depth))
-            if a != -32768: azm.append(en.azimuthAtDepth(depth))
+            vel.append(en.velocityAtDepth(depth))
+            azm.append(en.azimuthAtDepth(depth))
         return Mean(vel), MeanAzimuth(azm)
     def push(self, item):
         if not isinstance(item, Ensemble): raise Exception("Cannot add type: %s" % type(item))
-        heappush(self, item)
+        heappush(self.list, item)
         

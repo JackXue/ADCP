@@ -88,7 +88,9 @@ if __name__ == "__main__":
     traverse_list = []
 
     # Grab each trasect file and push them onto the list
+#    for i in range(26):
     for i in range(20):
+#        file = 'C:\\Documents and Settings\\John\\Desktop\\june_data\\LWG%03it.000' % i
         file = 'C:\\Documents and Settings\\John\\Desktop\\august_data\\LWG%03it.000' % i
         value, traverse = importTraverseFile(file)
         # We use the Heap module to build the transect, so we keep it ordered.
@@ -96,11 +98,12 @@ if __name__ == "__main__":
 
     # Each transect is a group of traverses, these are start and stop slices for each 
     # transect.
-    #trans_slices = [(0,4),(4,7),(7,12),(12,15),\
-    #                (15,19),(19,21),(21,25),(25)]
+#    trans_slices = [(0,4),(4,7),(7,12),(12,15),\
+#                    (15,19),(19,21),(21,25),(25)]
     trans_slices = [(0,4),(4,8),(8,12),(12,16),\
                     (16,20),(20,23)]
-    # Build a dictionary of transects 1-9 so we can access them by number
+    # Build a dictionary of transects so we can access them by number
+#    Trans = dict([(i,()) for i in range(1,9)])
     Trans = dict([(i,()) for i in range(1,7)])
     # And add Ensemble Collections to the new dictionary for later consumption
     n = 1
@@ -129,10 +132,12 @@ if __name__ == "__main__":
 #    kml.output()
         
     collections = {1: None, 2: None, 3: None, 4: None, 5:None}
+#    collections = {1:None, 3:None, 5: None, 7: None}
     for i in collections.keys(): 
         collections[i] = parse_transect(Trans[i], -1)
     # This is where we strip out any parts of the final transect that we don't want
     collections[3] = collections[3][:14]
+#    collections[1] = collections[1][:12]    
 
     outputData("Column Averaged", collections)
     for dep in [6,12,18,24]:
