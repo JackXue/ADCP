@@ -62,6 +62,7 @@ class Mean(float):
             if (n == 1): std = 0
             else: raise ZeroDivisionError
         err = std/sqrt(n)
+        print(lst)
         return mean, std, n, err, min(lst), max(lst)
 
 class MeanAzimuth(float):

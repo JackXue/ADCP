@@ -25,17 +25,16 @@ class Placemark(object):
         self.azimuth = azimuth
         self.depth = depth
         self.id = next(Placemark.id)
+    def zero(self): Placemark.id = count()
     def output(self):
         #TODO: Really look at abstracting this. Placemark shouldn't need to know about ensemble
         point = self.point
         vel = self.velocity()
         azm = self.azimuth()
-        rose = Rose(self.azimuth.original_list)
-        if ((azm[2] < 10) and (azm[3] > 0.2)):
-            azm = tuple([-32768 for i in range(6)])
+        rose = Rose(self.azimuth.original_list, size=200)
         dep = self.depth()
         data = {"velocity": vel[0],"v_dev": vel[1],"v_num": vel[2],"v_err": vel[3], "v_min": vel[4], "v_max": vel[5],
-                "azimuth": int(azm[0]),"a_dev": azm[1],"a_num": azm[2],"a_err": azm[3],
+                "azimuth": int(azm[0]),"a_dev": degrees(azm[1]),"a_num": azm[2],"a_err": azm[3],
                 "depth": dep[0],"d_dev": dep[1],"d_num": dep[2],"d_err": dep[3], "d_min": dep[4], "d_max": dep[5]}
         title = "Point #%i<br />" % self.id
         title += "\t" + ", ".join([str(i) for i in point])
@@ -54,7 +53,7 @@ class Placemark(object):
                 val = "<value>%0.3f</value>" % value
             self.text += """
                 <Data name="%s">%s</Data>\n""" % (name, val)
-        self.text += """<Data name="rose"><value><img src='%s' /></value></Data>\n""" % rose.URL().replace('&','&amp;')
+        self.text += """<Data name="rose"><value><img src='%s' /></value></Data>\n""" % rose.URL.replace('&','&amp;')
         self.text += """
             </ExtendedData>
             <Point>
@@ -109,7 +108,7 @@ class KML(object):
               <h4>Azimuth</h4>
               Mean azimuth: $[azimuth]<br />
               Standard error: $[a_err]<br />
-              Standard deviation:  $[a_dev]<br />
+              Standard deviation:  $[a_dev]&deg;<br />
               $[a_num] in rose diagram:<br />
               $[rose]
 

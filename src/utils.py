@@ -28,6 +28,8 @@ def outputData(name, collection, atDepth=None):
                 for v in val():
                     file.write(" %0.3f," % v)
             file.write("\n")
+    # Kludge to zero out the ID number, so that we have a new zero point for each depth.
+    PL.zero()
     kml.output()
     file.close()
 def filter_list(lst, bad_value=-32768):
